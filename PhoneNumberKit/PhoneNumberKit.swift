@@ -295,7 +295,14 @@ public final class PhoneNumberKit: NSObject {
     /// - returns: A computed value for the user's current region - based on the iPhone's carrier and if not available, the device region.
     public class func defaultRegionCode() -> String {
 #if os(iOS) && !targetEnvironment(simulator) && !targetEnvironment(macCatalyst)
-        let networkInfo = CTTelephonyNetworkInfo()
+        enum Shared {
+            // There is an assumption that in iOS 14, iOS 15 there could be an issue with functionality of CTTelephonyNetworkInfo.
+            // According to disussions https://developer.apple.com/forums/thread/667081, https://developer.apple.com/forums/thread/130373 it seems that solution to work around this issue proposed at https://stackoverflow.com/questions/14238586/coretelephony-crash could work.
+            // Namely, it is assumed that the system in some cases could send notifications to deallocated instances of CTTelephonyNetworkInfo. To work around this issue it is proposed to ensure that instance of CTTelephonyNetworkInfo is always available.
+            static let networkInfo = CTTelephonyNetworkInfo()
+        }
+
+        let networkInfo = Shared.networkInfo
         var carrier: CTCarrier? = nil
         if #available(iOS 12.0, *) {
             carrier = networkInfo.serviceSubscriberCellularProviders?.values.first
