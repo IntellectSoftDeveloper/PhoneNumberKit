@@ -295,23 +295,36 @@ public final class PhoneNumberKit: NSObject {
     /// - returns: A computed value for the user's current region - based on the iPhone's carrier and if not available, the device region.
     public class func defaultRegionCode() -> String {
 #if os(iOS) && !targetEnvironment(simulator) && !targetEnvironment(macCatalyst)
-        enum Shared {
-            // There is an assumption that in iOS 14, iOS 15 there could be an issue with functionality of CTTelephonyNetworkInfo.
-            // According to disussions https://developer.apple.com/forums/thread/667081, https://developer.apple.com/forums/thread/130373 it seems that solution to work around this issue proposed at https://stackoverflow.com/questions/14238586/coretelephony-crash could work.
-            // Namely, it is assumed that the system in some cases could send notifications to deallocated instances of CTTelephonyNetworkInfo. To work around this issue it is proposed to ensure that instance of CTTelephonyNetworkInfo is always available.
-            static let networkInfo = CTTelephonyNetworkInfo()
+        // According to crash reports, there is an issue in iOS 14 with functionality of CTTelephonyNetworkInfo.
+        // Details could be found at https://github.com/firebase/firebase-ios-sdk/issues/7339
+        var shouldUseTelephonyNetworkInfo = true
+        
+        if #available(iOS 14.0, *) {
+            if #available(iOS 15.0, *) { /*Empty implementation*/ } else {
+                shouldUseTelephonyNetworkInfo = false // Restrict usage of CTTelephonyNetworkInfo in iOS 14
+            }
         }
+        
+        if shouldUseTelephonyNetworkInfo {
+            enum Shared {
+                // According to disussions in iOS 13 there could be an issue with functionality of CTTelephonyNetworkInfo.
+                // https://developer.apple.com/forums/thread/667081, https://developer.apple.com/forums/thread/130373, https://github.com/mixpanel/mixpanel-swift/issues/367
+                // It seems that solution to work around this issue proposed at https://stackoverflow.com/questions/14238586/coretelephony-crash could work.
+                // Namely, it is assumed that the system in some cases could send notifications to deallocated instances of CTTelephonyNetworkInfo. To work around this issue it is proposed to ensure that instance of CTTelephonyNetworkInfo is always available.
+                static let networkInfo = CTTelephonyNetworkInfo()
+            }
 
-        let networkInfo = Shared.networkInfo
-        var carrier: CTCarrier? = nil
-        if #available(iOS 12.0, *) {
-            carrier = networkInfo.serviceSubscriberCellularProviders?.values.first
-        } else {
-            carrier = networkInfo.subscriberCellularProvider
-        }
+            let networkInfo = Shared.networkInfo
+            var carrier: CTCarrier? = nil
+            if #available(iOS 12.0, *) {
+                carrier = networkInfo.serviceSubscriberCellularProviders?.values.first
+            } else {
+                carrier = networkInfo.subscriberCellularProvider
+            }
 
-        if let isoCountryCode = carrier?.isoCountryCode {
-            return isoCountryCode.uppercased()
+            if let isoCountryCode = carrier?.isoCountryCode {
+                return isoCountryCode.uppercased()
+            }
         }
 #endif
         let currentLocale = Locale.current
