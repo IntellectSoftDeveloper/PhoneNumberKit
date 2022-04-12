@@ -295,15 +295,21 @@ public final class PhoneNumberKit: NSObject {
     /// - returns: A computed value for the user's current region - based on the iPhone's carrier and if not available, the device region.
     public class func defaultRegionCode() -> String {
 #if os(iOS) && !targetEnvironment(simulator) && !targetEnvironment(macCatalyst)
-        // According to crash reports, there is an issue in iOS 14 with functionality of CTTelephonyNetworkInfo.
-        // Details could be found at https://github.com/firebase/firebase-ios-sdk/issues/7339
-        var shouldUseTelephonyNetworkInfo = true
-        
-        if #available(iOS 14.0, *) {
-            if #available(iOS 15.0, *) { /*Empty implementation*/ } else {
-                shouldUseTelephonyNetworkInfo = false // Restrict usage of CTTelephonyNetworkInfo in iOS 14
+        let isIOS14: () -> Bool = {
+            if #available(iOS 14.0, *) {
+                if #available(iOS 15.0, *) {
+                    return false
+                } else {
+                    return true
+                }
+            } else {
+                return false
             }
         }
+        
+        // According to crash reports, there is an issue in iOS 14 with functionality of CTTelephonyNetworkInfo.
+        // Details could be found at https://github.com/firebase/firebase-ios-sdk/issues/7339
+        let shouldUseTelephonyNetworkInfo = !isIOS14()
         
         if shouldUseTelephonyNetworkInfo {
             enum Shared {
